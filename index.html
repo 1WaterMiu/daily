@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Daily · 每日待办</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4ecf7 100%);
+    min-height: 100vh;
+    margin: 0;
+    padding: 40px 20px;
+    color: #2c3e50;
+  }
+  .layout {
+    max-width: 1040px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 20px;
+  }
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+    padding: 28px;
+  }
+  h1 {
+    margin: 0 0 4px;
+    font-size: 28px;
+    font-weight: 700;
+  }
+  .date {
+    color: #8a96a3;
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+  .date .today-btn {
+    margin-left: 10px;
+    font-size: 12px;
+    color: #4a90e2;
+    background: none;
+    border: 1px solid #cfe0f5;
+    border-radius: 12px;
+    padding: 2px 10px;
+    cursor: pointer;
+  }
+  .date .today-btn:hover { background: #eaf3ff; }
+  .form {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .form input {
+    flex: 1;
+    min-width: 140px;
+    padding: 10px 14px;
+    border: 1px solid #dde3ec;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .form input:focus { border-color: #4a90e2; }
+  .form button {
+    padding: 10px 20px;
+    background: #4a90e2;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background .2s;
+  }
+  .form button:hover { background: #357ab8; }
+  .form button:disabled { background: #c0c6d0; cursor: not-allowed; }
+  .list { list-style: none; padding: 0; margin: 0; }
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid #eef2f7;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    transition: background .2s;
+  }
+  .item:hover { background: #fafcff; }
+  .item input[type=checkbox] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #4a90e2;
+  }
+  .project {
+    font-weight: 600;
+    color: #4a90e2;
+    background: #eaf3ff;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .task { flex: 1; font-size: 15px; }
+  .item.done .task {
+    text-decoration: line-through;
+    color: #a0aab5;
+  }
+  .del {
+    background: none;
+    border: none;
+    color: #c0c6d0;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0 4px;
+  }
+  .del:hover { color: #e74c3c; }
+  .empty {
+    text-align: center;
+    color: #a0aab5;
+    padding: 30px 0;
+    font-size: 14px;
+  }
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid #eef2f7;
+  }
+  .tab {
+    padding: 8px 16px;
+    font-size: 14px;
+    color: #8a96a3;
+    background: none;
+    border: none;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .tab.active {
+    color: #4a90e2;
+    border-bottom-color: #4a90e2;
+    font-weight: 600;
+  }
+  .pane { display: none; }
+  .pane.active { display: block; }
+  .daily-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid #eef2f7;
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+  .daily-label {
+    font-weight: 600;
+    color: #4a90e2;
+    background: #eaf3ff;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    white-space: nowrap;
+    min-width: 56px;
+    text-align: center;
+  }
+  .daily-row input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 15px;
+    background: transparent;
+    color: #2c3e50;
+  }
+  .daily-row input::placeholder { color: #c0c6d0; }
+  .daily-row input:disabled { cursor: not-allowed; }
+  .filter {
+    display: flex;
+    gap: 8px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px dashed #eef2f7;
+  }
+  .filter input {
+    flex: 1;
+    padding: 9px 12px;
+    border: 1px solid #dde3ec;
+    border-radius: 8px;
+    font-size: 13px;
+    outline: none;
+  }
+  .filter input:focus { border-color: #4a90e2; }
+  .filter button {
+    padding: 9px 16px;
+    background: #fff;
+    color: #4a90e2;
+    border: 1px solid #4a90e2;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .filter button:hover { background: #eaf3ff; }
+
+  .modal-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(30,40,55,0.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .modal-mask.show { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 16px;
+    max-width: 620px;
+    width: 100%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+  .modal-head {
+    padding: 20px 24px;
+    border-bottom: 1px solid #eef2f7;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .modal-head h2 { margin: 0; font-size: 18px; }
+  .modal-head .close {
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: #8a96a3;
+    cursor: pointer;
+  }
+  .modal-body {
+    padding: 16px 24px 24px;
+    overflow-y: auto;
+  }
+  .modal-group { margin-bottom: 18px; }
+  .modal-group h3 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: #4a90e2;
+    font-weight: 600;
+  }
+  .modal-entry {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #f7f9fc;
+    margin-bottom: 6px;
+    font-size: 14px;
+  }
+  .modal-entry.done { color: #a0aab5; text-decoration: line-through; }
+  .modal-entry .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #9cc3ec; flex-shrink: 0;
+  }
+  .modal-entry.done .dot { background: #4a90e2; }
+  .modal-stats {
+    color: #8a96a3;
+    font-size: 12px;
+    margin-bottom: 14px;
+  }
+
+  /* calendar */
+  .cal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .cal-head button {
+    background: #f1f5fb;
+    border: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #4a90e2;
+    font-size: 16px;
+  }
+  .cal-head button:hover { background: #e1ecf9; }
+  .cal-title { font-weight: 600; font-size: 15px; }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .cal-grid .dow {
+    text-align: center;
+    font-size: 12px;
+    color: #8a96a3;
+    padding: 6px 0;
+  }
+  .cal-cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #2c3e50;
+    background: #f7f9fc;
+    border: 2px solid transparent;
+    transition: transform .1s;
+  }
+  .cal-cell:hover { transform: scale(1.08); }
+  .cal-cell.empty { visibility: hidden; }
+  .cal-cell.other { color: #cfd6df; background: transparent; }
+  .cal-cell.has { background: #4a90e2; color: #fff; font-weight: 600; }
+  .cal-cell.has.partial { background: #9cc3ec; }
+  .cal-cell.today { border-color: #f5a623; }
+  .cal-cell.selected { box-shadow: 0 0 0 2px #2c3e50; }
+  .legend {
+    display: flex;
+    gap: 12px;
+    margin-top: 14px;
+    font-size: 11px;
+    color: #8a96a3;
+    flex-wrap: wrap;
+  }
+  .legend span { display: flex; align-items: center; gap: 4px; }
+  .legend i {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+  <div class="layout">
+    <div class="card">
+      <h1>Daily <span id="syncStatus" style="font-size:12px;font-weight:400;color:#8a96a3;margin-left:8px"></span></h1>
+      <div class="date">
+        <span id="date"></span>
+        <button class="today-btn" id="todayBtn" style="display:none">回到今天</button>
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-pane="work">工作记录</button>
+        <button class="tab" data-pane="daily">日常记录</button>
+      </div>
+      <div class="pane active" id="pane-work">
+        <form class="form" id="form">
+          <input id="project" placeholder="项目" required>
+          <input id="task" placeholder="具体工作内容" required>
+          <button type="submit" id="addBtn">添加</button>
+        </form>
+        <ul class="list" id="list"></ul>
+        <div class="filter">
+          <input id="filterInput" list="projectList" placeholder="按项目名搜索…">
+          <datalist id="projectList"></datalist>
+          <button type="button" id="filterBtn">查看</button>
+        </div>
+      </div>
+      <div class="pane" id="pane-daily">
+        <div id="dailyList"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cal-head">
+        <button id="prevM">‹</button>
+        <div class="cal-title" id="calTitle"></div>
+        <button id="nextM">›</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="legend">
+        <span><i style="background:#4a90e2"></i>全部完成</span>
+        <span><i style="background:#9cc3ec"></i>有未完成</span>
+        <span><i style="background:#fff;border:2px solid #f5a623"></i>今天</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="modal">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="modalTitle"></h2>
+        <button class="close" id="modalClose">×</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+<script>
+  const KEY = 'daily-todos-v2';
+  const OLD_KEY = 'daily-todos';
+  const DAILY_FIELDS = [
+    { key: 'breakfast', label: '早餐' },
+    { key: 'lunch',     label: '午餐' },
+    { key: 'dinner',    label: '晚餐' },
+    { key: 'fitness',   label: '健身' },
+  ];
+
+  // data: { "YYYY-MM-DD": { work: [{project,task,done}], daily: {breakfast,lunch,dinner,fitness} } }
+  let data = JSON.parse(localStorage.getItem(KEY) || 'null');
+  if (!data) data = {};
+  for (const k of Object.keys(data)) {
+    if (Array.isArray(data[k])) data[k] = { work: data[k], daily: {} };
+    else if (!data[k].work) data[k].work = [];
+  }
+  const legacy = JSON.parse(localStorage.getItem(OLD_KEY) || '[]');
+  if (legacy.length) {
+    const k = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+    if (!data[k]) data[k] = { work: legacy, daily: {} };
+  }
+
+  const statusEl = document.getElementById('syncStatus');
+  function setStatus(txt) { if (statusEl) statusEl.textContent = txt; }
+
+  async function loadFromServer() {
+    try {
+      setStatus('同步中…');
+      const r = await fetch('/api/data', { credentials: 'include' });
+      if (r.status === 401) { setStatus('未登录 · 仅本机'); return; }
+      if (!r.ok) throw new Error('http ' + r.status);
+      const body = await r.json();
+      const remote = body.data || {};
+      for (const k of Object.keys(remote)) {
+        if (Array.isArray(remote[k])) remote[k] = { work: remote[k], daily: {} };
+        else if (!remote[k].work) remote[k].work = [];
+      }
+      data = remote;
+      localStorage.setItem(KEY, JSON.stringify(data));
+      setStatus('已同步 · ' + body.email);
+      refreshProjectList();
+      renderList();
+      renderCal();
+    } catch (e) {
+      setStatus('离线 · 本机缓存');
+    }
+  }
+
+  let pushTimer = null, pushing = false, pendingPush = false;
+  async function pushToServer() {
+    if (pushing) { pendingPush = true; return; }
+    pushing = true;
+    try {
+      setStatus('保存中…');
+      const r = await fetch('/api/data', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ data }),
+      });
+      if (r.status === 401) { setStatus('未登录 · 仅本机'); return; }
+      if (!r.ok) throw new Error('http ' + r.status);
+      setStatus('已同步');
+    } catch (e) {
+      setStatus('离线 · 本机已存');
+    } finally {
+      pushing = false;
+      if (pendingPush) { pendingPush = false; schedulePush(); }
+    }
+  }
+  function schedulePush() {
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(pushToServer, 600);
+  }
+  function ensureDay(key) {
+    if (!data[key]) data[key] = { work: [], daily: {} };
+    return data[key];
+  }
+  function dayHasContent(d) {
+    if (!d) return false;
+    if (d.work && d.work.length) return true;
+    if (d.daily) for (const f of DAILY_FIELDS) if ((d.daily[f.key]||'').trim()) return true;
+    return false;
+  }
+
+  function ymd(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+  function save() {
+    localStorage.setItem(KEY, JSON.stringify(data));
+    refreshProjectList();
+    schedulePush();
+  }
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  let selected = new Date(today);
+  let calMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  const listEl = document.getElementById('list');
+  const dateEl = document.getElementById('date');
+  const todayBtn = document.getElementById('todayBtn');
+  const form = document.getElementById('form');
+  const projectIn = document.getElementById('project');
+  const taskIn = document.getElementById('task');
+  const addBtn = document.getElementById('addBtn');
+
+  function renderList() {
+    const key = ymd(selected);
+    const isToday = key === ymd(today);
+    const isFuture = selected > today;
+    dateEl.textContent = selected.toLocaleDateString('zh-CN', { year:'numeric', month:'long', day:'numeric', weekday:'long' });
+    todayBtn.style.display = isToday ? 'none' : 'inline-block';
+    addBtn.disabled = isFuture;
+
+    const day = data[key];
+    const todos = (day && day.work) || [];
+    listEl.innerHTML = '';
+    if (!todos.length) {
+      listEl.innerHTML = `<div class="empty">${isFuture ? '未来的日子还没到 🌱' : isToday ? '暂无待办,添加今天的第一项吧 ✨' : '这一天没有记录'}</div>`;
+    } else {
+      todos.forEach((t, i) => {
+        const li = document.createElement('li');
+        li.className = 'item' + (t.done ? ' done' : '');
+        li.innerHTML = `
+          <input type="checkbox" ${t.done ? 'checked' : ''}>
+          <span class="project"></span>
+          <span class="task"></span>
+          <button class="del" title="删除">×</button>
+        `;
+        li.querySelector('.project').textContent = t.project;
+        li.querySelector('.task').textContent = t.task;
+        li.querySelector('input').onchange = () => {
+          data[key].work[i].done = !data[key].work[i].done;
+          save(); renderList(); renderCal();
+        };
+        li.querySelector('.del').onclick = () => {
+          data[key].work.splice(i,1);
+          if (!dayHasContent(data[key])) delete data[key];
+          save(); renderList(); renderCal();
+        };
+        listEl.appendChild(li);
+      });
+    }
+    renderDaily(key, isFuture);
+  }
+
+  function renderDaily(key, isFuture) {
+    const dl = document.getElementById('dailyList');
+    dl.innerHTML = '';
+    const day = data[key];
+    DAILY_FIELDS.forEach(f => {
+      const row = document.createElement('div');
+      row.className = 'daily-row';
+      row.innerHTML = `<span class="daily-label"></span><input type="text" placeholder="记录一下…">`;
+      row.querySelector('.daily-label').textContent = f.label;
+      const input = row.querySelector('input');
+      input.value = (day && day.daily && day.daily[f.key]) || '';
+      input.disabled = isFuture;
+      input.oninput = () => {
+        ensureDay(key).daily[f.key] = input.value;
+        save();
+      };
+      input.onblur = () => {
+        if (!input.value.trim() && data[key]) {
+          delete data[key].daily[f.key];
+          if (!dayHasContent(data[key])) delete data[key];
+          save(); renderCal();
+        } else {
+          renderCal();
+        }
+      };
+      dl.appendChild(row);
+    });
+  }
+
+  function renderCal() {
+    document.getElementById('calTitle').textContent =
+      calMonth.toLocaleDateString('zh-CN', { year:'numeric', month:'long' });
+    const grid = document.getElementById('calGrid');
+    grid.innerHTML = '';
+    ['一','二','三','四','五','六','日'].forEach(d => {
+      const el = document.createElement('div'); el.className = 'dow'; el.textContent = d; grid.appendChild(el);
+    });
+    const first = new Date(calMonth);
+    const lastDay = new Date(calMonth.getFullYear(), calMonth.getMonth()+1, 0).getDate();
+    // Monday-first offset
+    let offset = first.getDay() - 1; if (offset < 0) offset = 6;
+    for (let i = 0; i < offset; i++) {
+      const el = document.createElement('div'); el.className = 'cal-cell empty'; grid.appendChild(el);
+    }
+    for (let d = 1; d <= lastDay; d++) {
+      const dt = new Date(calMonth.getFullYear(), calMonth.getMonth(), d);
+      const key = ymd(dt);
+      const el = document.createElement('div');
+      el.className = 'cal-cell';
+      el.textContent = d;
+      const day = data[key];
+      if (dayHasContent(day)) {
+        el.classList.add('has');
+        const work = day.work || [];
+        const allWorkDone = work.length === 0 || work.every(t => t.done);
+        if (!allWorkDone) el.classList.add('partial');
+      }
+      if (key === ymd(today)) el.classList.add('today');
+      if (key === ymd(selected)) el.classList.add('selected');
+      el.onclick = () => { selected = dt; renderList(); renderCal(); };
+      grid.appendChild(el);
+    }
+  }
+
+  form.onsubmit = e => {
+    e.preventDefault();
+    const key = ymd(selected);
+    ensureDay(key).work.push({ project: projectIn.value.trim(), task: taskIn.value.trim(), done: false });
+    save();
+    taskIn.value = '';
+    taskIn.focus();
+    renderList(); renderCal();
+  };
+
+  function allProjects() {
+    const set = new Set();
+    for (const k in data) (data[k].work || []).forEach(t => t.project && set.add(t.project));
+    return [...set].sort();
+  }
+  function refreshProjectList() {
+    const dl = document.getElementById('projectList');
+    dl.innerHTML = '';
+    allProjects().forEach(p => {
+      const o = document.createElement('option'); o.value = p; dl.appendChild(o);
+    });
+  }
+
+  const modal = document.getElementById('modal');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalBody = document.getElementById('modalBody');
+  document.getElementById('modalClose').onclick = () => modal.classList.remove('show');
+  modal.onclick = e => { if (e.target === modal) modal.classList.remove('show'); };
+
+  function openProjectModal(query) {
+    const q = (query || '').trim().toLowerCase();
+    if (!q) return;
+    // gather matching entries across all dates
+    const byDate = {};
+    let total = 0, done = 0;
+    const matchedNames = new Set();
+    for (const k of Object.keys(data)) {
+      const work = data[k].work || [];
+      work.forEach(t => {
+        if (t.project && t.project.toLowerCase().includes(q)) {
+          (byDate[k] = byDate[k] || []).push(t);
+          matchedNames.add(t.project);
+          total++;
+          if (t.done) done++;
+        }
+      });
+    }
+    const names = [...matchedNames];
+    modalTitle.textContent = names.length === 1 ? names[0] : (names.length ? `匹配 "${query}" (${names.length} 个项目)` : `"${query}"`);
+    modalBody.innerHTML = '';
+    if (!total) {
+      modalBody.innerHTML = '<div class="empty">没有找到相关工作记录</div>';
+    } else {
+      const stats = document.createElement('div');
+      stats.className = 'modal-stats';
+      stats.textContent = `共 ${total} 条记录 · 已完成 ${done} · 未完成 ${total-done} · 涉及 ${Object.keys(byDate).length} 天`;
+      modalBody.appendChild(stats);
+      const dates = Object.keys(byDate).sort().reverse();
+      dates.forEach(k => {
+        const group = document.createElement('div');
+        group.className = 'modal-group';
+        const h = document.createElement('h3');
+        const dt = new Date(k);
+        h.textContent = dt.toLocaleDateString('zh-CN', { year:'numeric', month:'long', day:'numeric', weekday:'long' });
+        group.appendChild(h);
+        byDate[k].forEach(t => {
+          const row = document.createElement('div');
+          row.className = 'modal-entry' + (t.done ? ' done' : '');
+          row.innerHTML = `<span class="dot"></span><span class="p"></span><span class="t"></span>`;
+          row.querySelector('.p').textContent = `[${t.project}]`;
+          row.querySelector('.t').textContent = t.task;
+          group.appendChild(row);
+        });
+        modalBody.appendChild(group);
+      });
+    }
+    modal.classList.add('show');
+  }
+
+  document.getElementById('filterBtn').onclick = () => openProjectModal(document.getElementById('filterInput').value);
+  document.getElementById('filterInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); openProjectModal(e.target.value); }
+  });
+
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b === btn));
+      const name = btn.dataset.pane;
+      document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
+    };
+  });
+
+  document.getElementById('prevM').onclick = () => {
+    calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()-1, 1);
+    renderCal();
+  };
+  document.getElementById('nextM').onclick = () => {
+    calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()+1, 1);
+    renderCal();
+  };
+  todayBtn.onclick = () => {
+    selected = new Date(today);
+    calMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    renderList(); renderCal();
+  };
+
+  refreshProjectList();
+  renderList();
+  renderCal();
+  loadFromServer();
+</script>
+</body>
+</html>
