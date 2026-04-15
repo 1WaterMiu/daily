@@ -319,7 +319,6 @@
     transition: transform .1s;
   }
   .cal-cell:hover { transform: scale(1.08); }
-  .cal-cell.empty { visibility: hidden; }
   .cal-cell.other { color: #cfd6df; background: transparent; }
   .cal-cell.has { background: #4a90e2; color: #fff; font-weight: 600; }
   .cal-cell.has.partial { background: #9cc3ec; }
@@ -588,14 +587,12 @@
     const lastDay = new Date(calMonth.getFullYear(), calMonth.getMonth()+1, 0).getDate();
     // Monday-first offset
     let offset = first.getDay() - 1; if (offset < 0) offset = 6;
-    for (let i = 0; i < offset; i++) {
-      const el = document.createElement('div'); el.className = 'cal-cell empty'; grid.appendChild(el);
-    }
     for (let d = 1; d <= lastDay; d++) {
       const dt = new Date(calMonth.getFullYear(), calMonth.getMonth(), d);
       const key = ymd(dt);
       const el = document.createElement('div');
       el.className = 'cal-cell';
+      if (d === 1 && offset > 0) el.style.gridColumnStart = offset + 1;
       el.textContent = d;
       const day = data[key];
       if (dayHasContent(day)) {
