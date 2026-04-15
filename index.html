@@ -622,7 +622,7 @@
     });
   }
 
-  const fmtAmt = n => '¥' + (Math.round(n * 100) / 100).toFixed(2);
+  const fmtAmt = n => '$' + (Math.round(n * 100) / 100).toFixed(2);
 
   function renderLedger(key, isFuture) {
     const listEl = document.getElementById('ledgerList');
