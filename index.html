@@ -688,9 +688,9 @@
     const s = rangeStart(currentRange, ref);
     const e = rangeEnd(currentRange, ref);
     let sum = 0, count = 0;
+    const sKey = ymd(s), eKey = ymd(e);
     for (const k of Object.keys(data)) {
-      const dt = new Date(k);
-      if (dt >= s && dt <= e) {
+      if (k >= sKey && k <= eKey) {
         (data[k].ledger || []).forEach(it => { sum += Number(it.amount) || 0; count++; });
       }
     }
