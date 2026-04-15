@@ -205,6 +205,33 @@
     cursor: pointer;
   }
   .filter button:hover { background: #eaf3ff; }
+  .amount {
+    font-weight: 600;
+    color: #e67e22;
+    white-space: nowrap;
+    font-size: 14px;
+  }
+  .ledger-day-total {
+    text-align: right;
+    font-size: 13px;
+    color: #8a96a3;
+    padding: 6px 4px 0;
+  }
+  .ledger-day-total b { color: #2c3e50; font-size: 15px; margin-left: 6px; }
+  .ledger-summary { align-items: center; flex-wrap: wrap; }
+  .range-btn.active {
+    background: #4a90e2;
+    color: #fff;
+  }
+  .range-total {
+    flex: 1;
+    text-align: right;
+    font-size: 14px;
+    color: #2c3e50;
+    font-weight: 600;
+    min-width: 120px;
+  }
+  .range-total b { color: #e67e22; font-size: 18px; margin-left: 6px; }
 
   .modal-mask {
     position: fixed;
@@ -352,6 +379,7 @@
       <div class="tabs">
         <button class="tab active" data-pane="work">工作记录</button>
         <button class="tab" data-pane="daily">日常记录</button>
+        <button class="tab" data-pane="ledger">记账</button>
       </div>
       <div class="pane active" id="pane-work">
         <form class="form" id="form">
@@ -368,6 +396,21 @@
       </div>
       <div class="pane" id="pane-daily">
         <div id="dailyList"></div>
+      </div>
+      <div class="pane" id="pane-ledger">
+        <form class="form" id="ledgerForm">
+          <input id="ledgerItem" placeholder="购物项目" required>
+          <input id="ledgerAmount" type="number" step="0.01" min="0" placeholder="金额" required>
+          <button type="submit" id="ledgerAddBtn">添加</button>
+        </form>
+        <ul class="list" id="ledgerList"></ul>
+        <div class="ledger-day-total" id="ledgerDayTotal"></div>
+        <div class="filter ledger-summary">
+          <button type="button" class="range-btn active" data-range="week">本周</button>
+          <button type="button" class="range-btn" data-range="month">本月</button>
+          <button type="button" class="range-btn" data-range="year">本年</button>
+          <div class="range-total" id="rangeTotal"></div>
+        </div>
       </div>
     </div>
 
@@ -409,14 +452,18 @@
   // data: { "YYYY-MM-DD": { work: [{project,task,done}], daily: {breakfast,lunch,dinner,fitness} } }
   let data = JSON.parse(localStorage.getItem(KEY) || 'null');
   if (!data) data = {};
-  for (const k of Object.keys(data)) {
-    if (Array.isArray(data[k])) data[k] = { work: data[k], daily: {} };
-    else if (!data[k].work) data[k].work = [];
+  function normalizeDay(d) {
+    if (Array.isArray(d)) d = { work: d, daily: {} };
+    if (!d.work) d.work = [];
+    if (!d.daily) d.daily = {};
+    if (!Array.isArray(d.ledger)) d.ledger = [];
+    return d;
   }
+  for (const k of Object.keys(data)) data[k] = normalizeDay(data[k]);
   const legacy = JSON.parse(localStorage.getItem(OLD_KEY) || '[]');
   if (legacy.length) {
     const k = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
-    if (!data[k]) data[k] = { work: legacy, daily: {} };
+    if (!data[k]) data[k] = normalizeDay({ work: legacy });
   }
 
   const statusEl = document.getElementById('syncStatus');
@@ -430,10 +477,7 @@
       if (!r.ok) throw new Error('http ' + r.status);
       const body = await r.json();
       const remote = body.data || {};
-      for (const k of Object.keys(remote)) {
-        if (Array.isArray(remote[k])) remote[k] = { work: remote[k], daily: {} };
-        else if (!remote[k].work) remote[k].work = [];
-      }
+      for (const k of Object.keys(remote)) remote[k] = normalizeDay(remote[k]);
       data = remote;
       localStorage.setItem(KEY, JSON.stringify(data));
       setStatus('已同步 · ' + body.email);
@@ -472,12 +516,13 @@
     pushTimer = setTimeout(pushToServer, 600);
   }
   function ensureDay(key) {
-    if (!data[key]) data[key] = { work: [], daily: {} };
+    if (!data[key]) data[key] = { work: [], daily: {}, ledger: [] };
     return data[key];
   }
   function dayHasContent(d) {
     if (!d) return false;
     if (d.work && d.work.length) return true;
+    if (d.ledger && d.ledger.length) return true;
     if (d.daily) for (const f of DAILY_FIELDS) if ((d.daily[f.key]||'').trim()) return true;
     return false;
   }
@@ -544,6 +589,8 @@
       });
     }
     renderDaily(key, isFuture);
+    renderLedger(key, isFuture);
+    renderRangeTotal();
   }
 
   function renderDaily(key, isFuture) {
@@ -573,6 +620,82 @@
       };
       dl.appendChild(row);
     });
+  }
+
+  const fmtAmt = n => '¥' + (Math.round(n * 100) / 100).toFixed(2);
+
+  function renderLedger(key, isFuture) {
+    const listEl = document.getElementById('ledgerList');
+    const totalEl = document.getElementById('ledgerDayTotal');
+    document.getElementById('ledgerAddBtn').disabled = isFuture;
+    document.getElementById('ledgerItem').disabled = isFuture;
+    document.getElementById('ledgerAmount').disabled = isFuture;
+    const day = data[key];
+    const items = (day && day.ledger) || [];
+    listEl.innerHTML = '';
+    if (!items.length) {
+      listEl.innerHTML = `<div class="empty">${isFuture ? '未来的日子还没到 🌱' : '这一天还没有记账'}</div>`;
+      totalEl.textContent = '';
+    } else {
+      let sum = 0;
+      items.forEach((it, i) => {
+        sum += Number(it.amount) || 0;
+        const li = document.createElement('li');
+        li.className = 'item';
+        li.innerHTML = `
+          <span class="task"></span>
+          <span class="amount"></span>
+          <button class="del" title="删除">×</button>
+        `;
+        li.querySelector('.task').textContent = it.item;
+        li.querySelector('.amount').textContent = fmtAmt(Number(it.amount) || 0);
+        li.querySelector('.del').onclick = () => {
+          data[key].ledger.splice(i, 1);
+          if (!dayHasContent(data[key])) delete data[key];
+          save(); renderList(); renderCal();
+        };
+        listEl.appendChild(li);
+      });
+      totalEl.innerHTML = `当日合计<b>${fmtAmt(sum)}</b>`;
+    }
+  }
+
+  let currentRange = 'week';
+  function rangeStart(range, ref) {
+    const d = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
+    if (range === 'week') {
+      let wd = d.getDay() - 1; if (wd < 0) wd = 6;
+      d.setDate(d.getDate() - wd);
+    } else if (range === 'month') {
+      d.setDate(1);
+    } else {
+      d.setMonth(0, 1);
+    }
+    return d;
+  }
+  function rangeEnd(range, ref) {
+    if (range === 'week') {
+      const s = rangeStart('week', ref);
+      return new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6);
+    }
+    if (range === 'month') return new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
+    return new Date(ref.getFullYear(), 11, 31);
+  }
+  function renderRangeTotal() {
+    const el = document.getElementById('rangeTotal');
+    if (!el) return;
+    const ref = selected;
+    const s = rangeStart(currentRange, ref);
+    const e = rangeEnd(currentRange, ref);
+    let sum = 0, count = 0;
+    for (const k of Object.keys(data)) {
+      const dt = new Date(k);
+      if (dt >= s && dt <= e) {
+        (data[k].ledger || []).forEach(it => { sum += Number(it.amount) || 0; count++; });
+      }
+    }
+    const label = currentRange === 'week' ? '本周' : currentRange === 'month' ? '本月' : '本年';
+    el.innerHTML = `${label}共 ${count} 笔<b>${fmtAmt(sum)}</b>`;
   }
 
   function renderCal() {
@@ -713,6 +836,29 @@
     calMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     renderList(); renderCal();
   };
+
+  const ledgerForm = document.getElementById('ledgerForm');
+  const ledgerItemIn = document.getElementById('ledgerItem');
+  const ledgerAmountIn = document.getElementById('ledgerAmount');
+  ledgerForm.onsubmit = e => {
+    e.preventDefault();
+    const key = ymd(selected);
+    const amt = parseFloat(ledgerAmountIn.value);
+    if (isNaN(amt)) return;
+    ensureDay(key).ledger.push({ item: ledgerItemIn.value.trim(), amount: amt });
+    save();
+    ledgerItemIn.value = '';
+    ledgerAmountIn.value = '';
+    ledgerItemIn.focus();
+    renderList(); renderCal();
+  };
+  document.querySelectorAll('.range-btn').forEach(btn => {
+    btn.onclick = () => {
+      currentRange = btn.dataset.range;
+      document.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderRangeTotal();
+    };
+  });
 
   refreshProjectList();
   renderList();
