@@ -587,20 +587,13 @@
     const lastDay = new Date(calMonth.getFullYear(), calMonth.getMonth()+1, 0).getDate();
     // Monday-first offset
     let offset = first.getDay() - 1; if (offset < 0) offset = 6;
-    // Leading days from previous month (greyed out)
-    const prevLastDay = new Date(calMonth.getFullYear(), calMonth.getMonth(), 0).getDate();
-    for (let i = offset - 1; i >= 0; i--) {
-      const el = document.createElement('div');
-      el.className = 'cal-cell other';
-      el.textContent = prevLastDay - i;
-      grid.appendChild(el);
-    }
     for (let d = 1; d <= lastDay; d++) {
       const dt = new Date(calMonth.getFullYear(), calMonth.getMonth(), d);
       const key = ymd(dt);
       const el = document.createElement('div');
       el.className = 'cal-cell';
       el.textContent = d;
+      if (d === 1 && offset > 0) el.style.gridColumnStart = offset + 1;
       const day = data[key];
       if (dayHasContent(day)) {
         el.classList.add('has');
@@ -611,15 +604,6 @@
       if (key === ymd(today)) el.classList.add('today');
       if (key === ymd(selected)) el.classList.add('selected');
       el.onclick = () => { selected = dt; renderList(); renderCal(); };
-      grid.appendChild(el);
-    }
-    // Trailing days from next month to complete the last row
-    const totalCells = offset + lastDay;
-    const trailing = (7 - (totalCells % 7)) % 7;
-    for (let i = 1; i <= trailing; i++) {
-      const el = document.createElement('div');
-      el.className = 'cal-cell other';
-      el.textContent = i;
       grid.appendChild(el);
     }
   }
